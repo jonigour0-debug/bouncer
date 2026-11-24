@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Bounce</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #080b18;
+      color: #f5f7ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 28px 16px;
+      overflow-x: hidden;
+      background:
+        radial-gradient(ellipse at 15% 15%, rgba(114, 55, 255, .26), transparent 38%),
+        radial-gradient(ellipse at 85% 80%, rgba(0, 211, 255, .18), transparent 40%),
+        linear-gradient(145deg, #080b18 0%, #11132a 55%, #09121e 100%);
+    }
+
+    .game-shell {
+      width: min(940px, 100%);
+      padding: 24px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 24px;
+      background: rgba(15, 19, 39, .82);
+      box-shadow: 0 24px 90px rgba(0,0,0,.45), 0 0 60px rgba(93, 82, 255, .12);
+      backdrop-filter: blur(16px);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      place-items: center;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 23px;
+      background: linear-gradient(135deg, #a855f7, #22d3ee);
+      box-shadow: 0 0 28px rgba(127, 91, 255, .4);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(20px, 4vw, 27px);
+      letter-spacing: -.8px;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: #9da7c6;
+      font-size: 13px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 10px;
+    }
+
+    .stat {
+      min-width: 82px;
+      padding: 9px 13px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 13px;
+      background: rgba(255,255,255,.045);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 3px;
+      color: #9da7c6;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .game-frame {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(142, 155, 255, .25);
+      border-radius: 17px;
+      background: #0a1024;
+      box-shadow: inset 0 0 40px rgba(39, 55, 120, .25);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      touch-action: none;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(5, 8, 22, .58);
+      backdrop-filter: blur(5px);
+      transition: opacity .2s ease;
+    }
+
+    .overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .overlay-card {
+      max-width: 390px;
+      text-align: center;
+    }
+
+    .overlay-card h2 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 6vw, 42px);
+      letter-spacing: -1.5px;
+      text-shadow: 0 0 26px rgba(91, 215, 255, .4);
+    }
+
+    .overlay-card p {
+      margin: 0 0 20px;
+      color: #c1c9e2;
+      line-height: 1.6;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 17px;
+      color: white;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 750;
+      cursor: pointer;
+      background: linear-gradient(100deg, #8b5cf6, #16b9e8);
+      box-shadow: 0 7px 22px rgba(76, 126, 255, .24);
+      transition: transform .15s ease, filter .15s ease;
+    }
+
+    button:hover { transform: translateY(-2px); filter: brightness(1.12); }
+    button:active { transform: translateY(0); }
+
+    .button-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .button-row .secondary {
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.07);
+      box-shadow: none;
+    }
+
+    .help {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 15px;
+      color: #98a2c2;
+      font-size: 12px;
+    }
+
+    .help strong { color: #d7ddf5; }
+
+    @media (max-width: 600px) {
+      .game-shell { padding: 15px; border-radius: 18px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .stats { width: 100%; }
+      .stat { flex: 1; }
+      .help { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">✦</div>
+        <div>
+          <h1>Neon Bounce</h1>
+          <p class="subtitle">Break the bricks. Keep the ball alive.</p>
+        </div>
+      </div>
+
+      <div class="stats" aria-label="Game statistics">
+        <div class="stat"><span class="stat-label">Score</span><span class="stat-value" id="score">0</span></div>
+        <div class="stat"><span class="stat-label">Best</span><span class="stat-value" id="best">0</span></div>
+        <div class="stat"><span class="stat-label">Lives</span><span class="stat-value" id="lives">3</span></div>
+      </div>
+    </header>
+
+    <section class="game-frame" aria-label="Bouncing ball game">
+      <canvas id="game" width="900" height="560"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="overlay-card">
+          <h2 id="overlay-title">Ready to bounce?</h2>
+          <p id="overlay-text">Move your paddle, catch the ball, and clear every neon brick.</p>
+          <button id="start-button">Start game</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="button-row">
+      <button class="secondary" id="pause-button">Pause</button>
+      <button class="secondary" id="restart-button">Restart</button>
+    </div>
+
+    <footer class="help">
+      <span><strong>Move:</strong> ← → or A / D</span>
+      <span><strong>Start / pause:</strong> Space</span>
+      <span>On mobile, drag to move the paddle</span>
+    </footer>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+    const bestEl = document.getElementById("best");
+    const livesEl = document.getElementById("lives");
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlay-title");
+    const overlayText = document.getElementById("overlay-text");
+    const startButton = document.getElementById("start-button");
+    const pauseButton = document.getElementById("pause-button");
+    const restartButton = document.getElementById("restart-button");
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const keys = new Set();
+
+    let score = 0;
+    let best = Number(localStorage.getItem("neonBounceBest") || 0);
+    let lives = 3;
+    let state = "ready";
+    let animationId;
+    let lastTime = 0;
+    let paddle;
+    let ball;
+    let bricks = [];
+
+    bestEl.textContent = best;
+
+    function makeBricks() {
+      const rows = 6;
+      const cols = 10;
+      const margin = 48;
+      const gap = 9;
+      const brickW = (W - margin * 2 - gap * (cols - 1)) / cols;
+      const brickH = 23;
+      const colors = ["#ff5488", "#ff8b55", "#ffd45c", "#42e2b8", "#45c8ff", "#a77bff"];
+      bricks = [];
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          bricks.push({
+            x: margin + col * (brickW + gap),
+            y: 62 + row * (brickH + gap),
+            w: brickW,
+            h: brickH,
+            color: colors[row]
+          });
+        }
+      }
+    }
+
+    function placeBall() {
+      ball = {
+        x: paddle.x + paddle.w / 2,
+        y: paddle.y - 12,
+        r: 9,
+        dx: 4.1 * (Math.random() > 0.5 ? 1 : -1),
+        dy: -4.4
+      };
+    }
+
+    function resetGame() {
+      score = 0;
+      lives = 3;
+      paddle = { x: W / 2 - 62, y: H - 43, w: 124, h: 13, speed: 8 };
+      makeBricks();
+      placeBall();
+      state = "ready";
+      updateStats();
+      showOverlay("Ready to bounce?", "Move your paddle, catch the ball, and clear every neon brick.", "Start game");
+      draw();
+    }
+
+    function updateStats() {
+      scoreEl.textContent = score;
+      livesEl.textContent = lives;
+      if (score > best) {
+        best = score;
+        localStorage.setItem("neonBounceBest", best);
+        bestEl.textContent = best;
+      }
+    }
+
+    function showOverlay(title, text, buttonText) {
+      overlayTitle.textContent = title;
+      overlayText.textContent = text;
+      startButton.textContent = buttonText;
+      overlay.classList.remove("hidden");
+    }
+
+    function hideOverlay() {
+      overlay.classList.add("hidden");
+    }
+
+    function startOrResume() {
+      if (state === "gameover") resetGame();
+      state = "running";
+      hideOverlay();
+      lastTime = performance.now();
+      if (!animationId) animationId = requestAnimationFrame(loop);
+    }
+
+    function togglePause() {
+      if (state === "running") {
+        state = "paused";
+        showOverlay("Paused", "Take a breather. Your game is waiting.", "Resume");
+      } else if (state === "paused" || state === "ready") {
+        startOrResume();
+      }
+    }
+
+    function movePaddleTo(x) {
+      paddle.x = Math.max(0, Math.min(W - paddle.w, x - paddle.w / 2));
+      if (state === "ready") ball.x = paddle.x + paddle.w / 2;
+    }
+
+    function update(dt) {
+      const step = Math.min(dt / 16.67, 2.2);
+      if (keys.has("ArrowLeft") || keys.has("a")) paddle.x -= paddle.speed * step;
+      if (keys.has("ArrowRight") || keys.has("d")) paddle.x += paddle.speed * step;
+      paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
+
+      if (state !== "running") {
+        if (state === "ready") {
+          ball.x = paddle.x + paddle.w / 2;
+          ball.y = paddle.y - ball.r - 3;
+        }
+        return;
+      }
+
+      ball.x += ball.dx * step;
+      ball.y += ball.dy * step;
+
+      if (ball.x - ball.r < 0) { ball.x = ball.r; ball.dx = Math.abs(ball.dx); }
+      if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.dx = -Math.abs(ball.dx); }
+      if (ball.y - ball.r < 0) { ball.y = ball.r; ball.dy = Math.abs(ball.dy); }
+
+      if (
+        ball.dy > 0 &&
+        ball.y + ball.r >= paddle.y &&
+        ball.y - ball.r <= paddle.y + paddle.h &&
+        ball.x >= paddle.x &&
+        ball.x <= paddle.x + paddle.w
+      ) {
+        ball.y = paddle.y - ball.r;
+        const hit = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+        ball.dx = hit * 5.4;
+        ball.dy = -Math.max(4.2, Math.abs(ball.dy));
+      }
+
+      for (let i = bricks.length - 1; i >= 0; i--) {
+        const brick = bricks[i];
+        if (
+          ball.x + ball.r > brick.x &&
+          ball.x - ball.r < brick.x + brick.w &&
+          ball.y + ball.r > brick.y &&
+          ball.y - ball.r < brick.y + brick.h
+        ) {
+          bricks.splice(i, 1);
+          ball.dy *= -1;
+          score += 10;
+          updateStats();
+          break;
+        }
+      }
+
+      if (bricks.length === 0) {
+        makeBricks();
+        ball.dy = -Math.sign(ball.dy) * Math.min(Math.abs(ball.dy) + 0.5, 8);
+        score += 100;
+        updateStats();
+      }
+
+      if (ball.y - ball.r > H) {
+        lives--;
+        updateStats();
+        if (lives <= 0) {
+          state = "gameover";
+          showOverlay("Game over", `You scored ${score} points. Want to try again?`, "Play again");
+        } else {
+          state = "ready";
+          placeBall();
+          showOverlay("One more chance!", "Your paddle is ready. Get back in the game!", "Continue");
+        }
+      }
+    }
+
+    function roundedRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+    }
+
+    function drawBackground() {
+      const gradient = ctx.createLinearGradient(0, 0, W, H);
+      gradient.addColorStop(0, "#101936");
+      gradient.addColorStop(0.55, "#11152d");
+      gradient.addColorStop(1, "#0b1c2b");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(140, 170, 255, 0.055)";
+      ctx.lineWidth = 1;
+      for (let x = 25; x < W; x += 38) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      for (let y = 20; y < H; y += 38) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+      ctx.restore();
+
+      const glow = ctx.createRadialGradient(W / 2, H * .65, 20, W / 2, H * .65, 390);
+      glow.addColorStop(0, "rgba(48, 96, 190, .13)");
+      glow.addColorStop(1, "rgba(10, 15, 35, 0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    function draw() {
+      drawBackground();
+
+      bricks.forEach(brick => {
+        ctx.save();
+        ctx.shadowColor = brick.color;
+        ctx.shadowBlur = 13;
+        const gradient = ctx.createLinearGradient(brick.x, brick.y, brick.x, brick.y + brick.h);
+        gradient.addColorStop(0, "#ffffff");
+        gradient.addColorStop(.12, brick.color);
+        gradient.addColorStop(1, brick.color);
+        ctx.fillStyle = gradient;
+        roundedRect(brick.x, brick.y, brick.w, brick.h, 6);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      ctx.save();
+      ctx.shadowColor = "#48dfff";
+      ctx.shadowBlur = 22;
+      const paddleGradient = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x + paddle.w, paddle.y);
+      paddleGradient.addColorStop(0, "#8b5cf6");
+      paddleGradient.addColorStop(1, "#22d3ee");
+      ctx.fillStyle = paddleGradient;
+      roundedRect(paddle.x, paddle.y, paddle.w, paddle.h, 8);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.shadowColor = "#fff2a1";
+      ctx.shadowBlur = 24;
+      const ballGradient = ctx.createRadialGradient(ball.x - 3, ball.y - 4, 1, ball.x, ball.y, ball.r);
+      ballGradient.addColorStop(0, "#ffffff");
+      ballGradient.addColorStop(.45, "#fff3a6");
+      ballGradient.addColorStop(1, "#ff9f43");
+      ctx.fillStyle = ballGradient;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function loop(time) {
+      const dt = time - lastTime;
+      lastTime = time;
+      update(dt);
+      draw();
+      if (state === "running") {
+        animationId = requestAnimationFrame(loop);
+      } else {
+        animationId = null;
+      }
+    }
+
+    startButton.addEventListener("click", startOrResume);
+    pauseButton.addEventListener("click", togglePause);
+    restartButton.addEventListener("click", () => {
+      resetGame();
+      startOrResume();
+    });
+
+    window.addEventListener("keydown", event => {
+      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+      if (["ArrowLeft", "ArrowRight", " "].includes(event.key)) event.preventDefault();
+      keys.add(key);
+      if (event.code === "Space") togglePause();
+    });
+
+    window.addEventListener("keyup", event => {
+      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+      keys.delete(key);
+    });
+
+    canvas.addEventListener("pointermove", event => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = W / rect.width;
+      movePaddleTo((event.clientX - rect.left) * scaleX);
+    });
+
+    canvas.addEventListener("pointerdown", event => {
+      canvas.setPointerCapture(event.pointerId);
+      const rect = canvas.getBoundingClientRect();
+      movePaddleTo((event.clientX - rect.left) * (W / rect.width));
+    });
+
+    resetGame();
+  </script>
+</body>
+</html>
